@@ -2,14 +2,19 @@ CC = gcc
 CFLAGS = -Wall -Ofast -lm -lpthread -std=gnu11
 OGLFLAGS = -Wno-deprecated-declarations
 
-all:
-	$(CC) $(CFLAGS) -o ray-trace fuentes/main.c
+SRC=fuentes/main.c fuentes/tipos.h fuentes/kdtree.c fuentes/kdtree.h
+OBJ=fuentes/kdtree.o
+
+all: $(OBJ)
+	$(CC) $(CFLAGS) -o ray-trace fuentes/main.c $(OBJ)
+
 #compilar Linux
-ogl:
-	$(CC) $(CFLAGS) $(OGLFLAGS) -lOpenGL -lglut -DOPENGL -o ray-trace fuentes/main.c
+ogl: $(OBJ)
+	$(CC) $(CFLAGS) $(OGLFLAGS) -lOpenGL -lglut -DOPENGL -o ray-trace fuentes/main.c $(OBJ)
+
 #compilar Mac
-oglm:
-	$(CC) $(CFLAGS) $(OGLFLAGS) -framework OpenGL -framework GLUT -DOPENGL -o ray-trace fuentes/main.c
+oglm: $(OBJ)
+	$(CC) $(CFLAGS) $(OGLFLAGS) -framework OpenGL -framework GLUT -DOPENGL -o ray-trace fuentes/main.c $(OBJ)
 
 clean:
-	$(RM) ray-trace
+	$(RM) $(OBJ) ray-trace

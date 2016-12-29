@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include "tipos.h"
+#include "kdtree.h"
 
 #ifdef OPENGL
 	#ifdef __APPLE__
