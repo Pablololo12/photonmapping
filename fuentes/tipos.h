@@ -46,12 +46,9 @@ typedef struct luces{
 	struct luces * l;
 }luces;
 
-struct kd_node_t{
-	double x[MAX_DIM];
-	double dist;
+typedef struct photon{
 	color * color;
-	vector * vector;
-	struct kd_node_t *left, *right;
-};
+	vector * direccion;
+}photon;
 
 #endif

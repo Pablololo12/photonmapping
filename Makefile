@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -Ofast -lm -lpthread -std=gnu11
+CFLAGS =-Wall -Ofast -lm -lpthread -std=gnu11
 OGLFLAGS = -Wno-deprecated-declarations
 
-SRC=fuentes/main.c fuentes/tipos.h fuentes/kdtree.c fuentes/kdtree.h
+SRC=fuentes/tipos.h fuentes/kdtree.c fuentes/kdtree.h
 OBJ=fuentes/kdtree.o
 
 all: $(OBJ)

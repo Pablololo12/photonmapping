@@ -20,9 +20,9 @@
 	#endif
 #endif
 
-#define RAYOS_INDIRECTOS	64
+#define NUM_RAYOS 1000.0
 #define RECURSIONES 5
-#define NUM_THREADS 4
+#define NUM_THREADS 1
 
 volatile sig_atomic_t progreso=0;
 volatile sig_atomic_t porcentaje=0;
@@ -31,14 +31,13 @@ unsigned char * img_buff;
 
 
 color calcular_luz(vector pixel, punto cam, int recursivo);
-color luz_indirecta (punto punto_mat, vector n, vector incidente, double ks, color *kd, double alpha, int recursivo);
 
 // Valores de resolución y posición de la cámara
 int ancho=500;
 int alto=500;
 punto camara={0.5,0.5,-3.0};
 int incrementador;
-
+int total_insertado=0;
 
 double EPSILON = 0.000001;
 
@@ -49,6 +48,8 @@ char * scn={"escenas/imagen.scn"};
 // Punteros a las listas donde se almacenan las esferas y los focos
 lista * l = NULL;
 luces * lights = NULL;
+
+struct kdtree * mapaFotones;
 
 
 /*
@@ -370,6 +371,7 @@ color luz_directa(punto esfera, lista * minimo, luces * luz, vector pixel, vecto
 	power.r = luz->color->r / light;
 	power.g = luz->color->g / light;
 	power.b = luz->color->b / light;
+	//if(light<1.0) printf("%f %f %f %f\n", power.r,power.g,power.b,light);
 	
 	normalizar(&inter);
 
@@ -425,6 +427,10 @@ color luz_directa(punto esfera, lista * minimo, luces * luz, vector pixel, vecto
 	rgb.g = power.g * (minimo->propiedades->color->g + especular) / M_PI * dotproductIntegral;
 	rgb.b = power.b * (minimo->propiedades->color->b + especular) / M_PI * dotproductIntegral;
 
+	if(rgb.r > 1.0) rgb.r=1.0;
+	if(rgb.g > 1.0) rgb.g=1.0;
+	if(rgb.b > 1.0) rgb.b=1.0;
+
 	return rgb;
 }
 
@@ -468,6 +474,108 @@ color refraction (lista *esfera, punto *point, vector *normal, vector *ray, int 
 	color col; 
 	col = calcular_luz(refractado,*point,recursivo);
 	return col;
+}
+
+int brdf(vector omegao, vector inter, vector normal, lista * minimo, color * potencia)
+{
+	
+	//Obtenemos omega r
+	double dotproduc = inter.x*normal.x + inter.y*normal.y + inter.z*normal.z;
+	vector omegar;
+	omegar.x = inter.x - 2*(inter.x - normal.x*dotproduc);
+	omegar.y = inter.y - 2*(inter.y - normal.y*dotproduc);
+	omegar.z = inter.z - 2*(inter.z - normal.z*dotproduc);
+	normalizar(&omegar);
+
+
+	// Por ultimo aplicamos phong
+	double dotproductPhong = dotproduct(&omegao, &omegar);
+	if (dotproductPhong < 0) dotproductPhong = -dotproductPhong;
+	dotproductPhong = pow(dotproductPhong, minimo->propiedades->alpha);
+	
+	double especular = dotproductPhong * minimo->propiedades->ks * (minimo->propiedades->alpha + 2) / 2;
+
+	potencia->r = potencia->r * ((minimo->propiedades->color->r + especular) / M_PI);
+	potencia->g = potencia->g * ((minimo->propiedades->color->g + especular) / M_PI);
+	potencia->b = potencia->b * ((minimo->propiedades->color->b + especular) / M_PI);
+
+	return 1;
+}
+
+color luz_indirecta(vector pixel, punto lugar, vector normal, lista * objeto)
+{
+	double pos[3] = {lugar.x,lugar.y,lugar.z};
+	double i=0.05;
+	struct kdres * busqueda=kd_nearest_range(mapaFotones, pos, i);
+
+	color acumulador={0.0,0.0,0.0};
+	double max_dist=0.0;
+
+	while(kd_res_size(busqueda)<50)
+	{
+		i+=0.05;
+		kd_res_free(busqueda);
+		busqueda=kd_nearest_range(mapaFotones, pos, i);
+	}
+
+	//int num=kd_res_size(busqueda);
+
+	while( !kd_res_end( busqueda ) ) {
+		/* get the data and position of the current result item */
+		photon * foton;
+		foton = (photon *)kd_res_item( busqueda, pos );
+
+		double acum = lugar.x-pos[0];
+		double acum2 = acum*acum;
+		acum = lugar.y-pos[1];
+		acum2 += acum*acum;
+		acum = lugar.z-pos[2];
+		acum2 += acum*acum;
+
+		acum = sqrt(acum2);
+		
+		color aux;
+		aux.r = foton->color->r; aux.g = foton->color->g; aux.b = foton->color->b;
+		brdf(pixel, *foton->direccion, normal, objeto, &aux);
+
+		// Filtro gausiano
+		/*acum2 = -1.953*(acum*acum)/(2*M_PI*M_PI);
+		acum2 = pow(M_E,acum2);
+		acum2 = (1 - acum2) / (1 - pow(M_E,-1.953));
+		acum2 = 0.918*(1 - acum2);*/
+
+		acum2 = 1 - (acum/(2.0*i));
+
+		acumulador.r+=aux.r*acum2; acumulador.g+=aux.g*acum2; acumulador.b+=aux.b*acum2;
+
+		/* go to the next entry */
+		kd_res_next( busqueda );
+
+		if(max_dist<acum)
+			max_dist=acum;
+	}
+
+	kd_res_free(busqueda);
+
+	max_dist=max_dist*max_dist;
+	//max_dist=max_dist*max_dist*max_dist;
+	double area = M_PI*max_dist;
+	//double area = (4.0*M_PI*max_dist)/3.0;
+	area = area * (1-(2/(3*2.0)));
+
+	//acumulador.r=acumulador.r/area;
+	//acumulador.g=acumulador.g/area;
+	//acumulador.b=acumulador.b/area;
+
+	acumulador.r=(acumulador.r/area)*10;
+	acumulador.g=(acumulador.g/area)*10;
+	acumulador.b=(acumulador.b/area)*10;
+
+	if(acumulador.r>1.0) acumulador.r=1.0;
+	if(acumulador.g>1.0) acumulador.g=1.0;
+	if(acumulador.b>1.0) acumulador.b=1.0;
+
+	return acumulador;
 }
 
 /*
@@ -573,11 +681,11 @@ color calcular_luz(vector pixel, punto cam, int recursivo)
 	rgb.b = rgb.b * (1.0 - minimo->propiedades->Krfl->b - minimo->propiedades->Krfr->b);
 	
 
+	int flag = 0;
 	if(recursivo>0){
 		recursivo--;
 		color color_reflexion;
 		color color_refraccion;
-		color color_indirecta;
 				
 		// Se calcula la reflexion solo si es necesario
 		if(minimo->propiedades->Krfl->r!=0.0 && 
@@ -588,6 +696,7 @@ color calcular_luz(vector pixel, punto cam, int recursivo)
 			rgb.r = rgb.r + color_reflexion.r * minimo->propiedades->Krfl->r;
 			rgb.g = rgb.g + color_reflexion.g * minimo->propiedades->Krfl->g;
 			rgb.b = rgb.b + color_reflexion.b * minimo->propiedades->Krfl->b;
+			flag=1;
 		}
 
 		// Se calcula la refraccion solo si es necesario
@@ -600,39 +709,27 @@ color calcular_luz(vector pixel, punto cam, int recursivo)
 			rgb.r = rgb.r + color_refraccion.r * minimo->propiedades->Krfr->r;
 			rgb.g = rgb.g + color_refraccion.g * minimo->propiedades->Krfr->g;
 			rgb.b = rgb.b + color_refraccion.b * minimo->propiedades->Krfr->b;
+			flag=1;
 		}
 
+	}
 
+	if(flag==0){
+		vector camara ={-pixel.x,-pixel.y,-pixel.z};
+		normalizar(&camara);
+		color indirecta = luz_indirecta(camara, esfera, *normal, minimo);
 
-		color_indirecta = luz_indirecta(esfera, *normal, pixel, minimo->propiedades->ks, minimo->propiedades->color, minimo->propiedades->alpha, recursivo);
-		rgb.r += color_indirecta.r * (1.0 - minimo->propiedades->Krfl->r - minimo->propiedades->Krfr->r);
-		rgb.g += color_indirecta.g * (1.0 - minimo->propiedades->Krfl->g - minimo->propiedades->Krfr->g);
-		rgb.b += color_indirecta.b * (1.0 - minimo->propiedades->Krfl->b - minimo->propiedades->Krfr->b);
-
+		rgb.r+=indirecta.r * (1.0 - minimo->propiedades->Krfl->r - minimo->propiedades->Krfr->r);
+		rgb.g+=indirecta.g * (1.0 - minimo->propiedades->Krfl->g - minimo->propiedades->Krfr->g);
+		rgb.b+=indirecta.b * (1.0 - minimo->propiedades->Krfl->b - minimo->propiedades->Krfr->b);
 	}
 
 	free(normal);
 
-	if(rgb.r > 1.0) rgb.r=1.0;
-	if(rgb.g > 1.0) rgb.g=1.0;
-	if(rgb.b > 1.0) rgb.b=1.0;
+	//if(rgb.r > 1.0) rgb.r=1.0;
+	//if(rgb.g > 1.0) rgb.g=1.0;
+	//if(rgb.b > 1.0) rgb.b=1.0;
 	return rgb;
-}
-
-double acumulativa_inversa_inclinacion(double x){
-	return acos(sqrt(1.0-x));
-}
-
-double p_inclinacion(double x){
-	return 2 * cos(x) * sin(x);
-}
-
-double acumulativa_inversa_acimut(double x){
-	return 2.0 * M_PI * x;
-}
-
-double p_acimut(double x){
-	return (double) 1 / (2 * M_PI);
 }
 
 vector global_desde_local(vector local, vector u, vector v, vector n){
@@ -643,9 +740,16 @@ vector global_desde_local(vector local, vector u, vector v, vector n){
 	return global;
 }
 
-color luz_indirecta (punto punto_mat, vector n, vector incidente, double ks, color *kd, double alpha, int recursivo){
-	color luz_indirecta = {0.0, 0.0, 0.0};
+double acumulativa_inversa_inclinacion(double x){
+	return acos(sqrt(1.0-x));
+}
 
+double acumulativa_inversa_acimut(double x){
+	return 2.0 * M_PI * x;
+}
+
+int obtener_rayo(vector n, vector * saliente)
+{
 	//primero se obtienen vectores perpendiculares para la geometria local
 	double aleatorio=0.0;
 	do{
@@ -660,43 +764,249 @@ color luz_indirecta (punto punto_mat, vector n, vector incidente, double ks, col
 	crossproduct(&n, &u, &v);
 	normalizar(&v);
 
-	int i;
-	for (i = 0; i < RAYOS_INDIRECTOS; i++){
-		//se eligen la inclinación y el acimut por montecarlo
-		srand(clock());
-		do{
-			aleatorio = (double) (rand()%1000) / 1000.0;
-		} while(aleatorio<0.0 || aleatorio>=1.0);
-		double inclinacion = acumulativa_inversa_inclinacion(aleatorio);
-		do{
-			aleatorio = (double) (rand()%1000) / 1000.0;
-		} while(aleatorio<0.0 || aleatorio>=1.0);
-		double acimut = acumulativa_inversa_acimut(aleatorio);
+	//se eligen la inclinación y el acimut por montecarlo
+	srand(clock());
+	do{
+		aleatorio = (double) (rand()%1000) / 1000.0;
+	} while(aleatorio<0.0 || aleatorio>=1.0);
+	double inclinacion = acumulativa_inversa_inclinacion(aleatorio);
+	do{
+		aleatorio = (double) (rand()%1000) / 1000.0;
+	} while(aleatorio<0.0 || aleatorio>=1.0);
+	double acimut = acumulativa_inversa_acimut(aleatorio);
 
-		//vector reflejado en geometría local
-		vector reflejado = {sin(inclinacion) * cos(acimut), sin(inclinacion) * sin(acimut), cos(inclinacion)};
+	//vector reflejado en geometría local
+	vector reflejado = {sin(inclinacion) * cos(acimut), sin(inclinacion) * sin(acimut), cos(inclinacion)};
 
-		//vector reflejado en geometría global
-		reflejado = global_desde_local(reflejado, u, v, n);
+	//vector reflejado en geometría global
+	reflejado = global_desde_local(reflejado, u, v, n);
+	normalizar(&reflejado);
 
-		color luz_incidente=calcular_luz(reflejado, punto_mat, 0);
-		double dotproduc = dotproduct(&incidente, &reflejado);
-		if (dotproduc < 0) dotproduc = -dotproduc;
-		dotproduc = pow(dotproduc, alpha);
+	saliente->x=reflejado.x;
+	saliente->y=reflejado.y;
+	saliente->z=reflejado.z;
 
-		double especular = ks * (alpha + 2) / 2 * dotproduc;
-		
-		luz_indirecta.r += luz_incidente.r * (kd->r + especular);
-		luz_indirecta.g += luz_incidente.g * (kd->g + especular);
-		luz_indirecta.b += luz_incidente.b * (kd->b + especular);
-		
+	return 1;
+}
+
+/*
+ * Método para calcular la luz de un pixel
+ */
+int enviar_photon(vector pixel, punto cam, color potencia, int primera_vez)
+{
+	// Primero buscamos el punto de intersección más cercano
+	double min = 65535.0;
+	double dist = 0.0;
+	lista * aux = l;
+	lista * minimo = NULL;
+	char dir = 1;
+	char dir_aux = 1;
+	// Buscamos donde se choca el rayo
+	while(1){
+		if(aux->radio==-1.0)
+		{
+			dist = toca_triangulo(cam, pixel, aux->punto[0],aux->punto[1],aux->punto[2]);
+		} else{
+			dist = toca_esfera(cam,pixel,*aux->punto,aux->radio,&dir);
+		}
+		if(dist>0.0 && dist<min){
+			min = dist;
+			minimo = aux;
+			dir_aux = dir;
+		}
+		if(aux->l==NULL) break;
+		aux = aux->l;
 	}
-	//se divide por el número de muestras y ladistribución de probabilidad
-	luz_indirecta.r = luz_indirecta.r/(double)(RAYOS_INDIRECTOS);
-	luz_indirecta.g = luz_indirecta.g/(double)(RAYOS_INDIRECTOS);
-	luz_indirecta.b = luz_indirecta.b/(double)(RAYOS_INDIRECTOS);
+	if(min == 65535.0){
+		return 0;
+	}
 
-	return luz_indirecta;
+	// Obtenemos las coordenadas del punto en el espacio
+	punto esfera;
+	esfera.x = cam.x + pixel.x*min;
+	esfera.y = cam.y + pixel.y*min;
+	esfera.z = cam.z + pixel.z*min;
+
+	vector inter;
+	inter.x = cam.x - esfera.x;
+	inter.y = cam.y - esfera.y;
+	inter.z = cam.z - esfera.z;
+
+	/*double light = inter.x*inter.x + inter.y*inter.y + inter.z*inter.z;
+	if(light<1.0) light=1.0;
+	potencia.r = potencia.r / (4*light);
+	potencia.g = potencia.g / (4*light);
+	potencia.b = potencia.b / (4*light);*/
+	//printf("%f %f %f %f\n", potencia.r,potencia.g,potencia.b,light);
+
+	normalizar(&inter);
+
+	// Calculamos la normal dependiendo si se esta dentro o fuera del circulo
+	vector * normal = calloc(1,sizeof(vector));
+	if(minimo->radio>=0.0){
+		if(dir_aux==1){
+			normal->x = esfera.x - minimo->punto->x;
+			normal->y = esfera.y - minimo->punto->y;
+			normal->z = esfera.z - minimo->punto->z;
+		} else{
+			normal->x = minimo->punto->x - esfera.x;
+			normal->y = minimo->punto->y - esfera.y;
+			normal->z = minimo->punto->z - esfera.z;
+		}
+	} else{
+		if(minimo->normales == NULL){
+			vector e1 = {minimo->punto[1].x-minimo->punto[0].x, minimo->punto[1].y-minimo->punto[0].y, minimo->punto[1].z-minimo->punto[0].z};
+			vector e2 = {minimo->punto[2].x-minimo->punto[0].x, minimo->punto[2].y-minimo->punto[0].y, minimo->punto[2].z-minimo->punto[0].z};
+			crossproduct(&e1,&e2,normal);
+			double dotp=dotproduct(normal, &pixel);
+			if(dotp>0.0){normal->x=-normal->x;normal->y=-normal->y;normal->z=-normal->z;}
+		
+		}else{
+			vector d1 = {minimo->punto[0].x-esfera.x, minimo->punto[0].y-esfera.y, minimo->punto[0].z-esfera.z};
+			vector d2 = {minimo->punto[1].x-esfera.x, minimo->punto[1].y-esfera.y, minimo->punto[1].z-esfera.z};
+			vector d3 = {minimo->punto[2].x-esfera.x, minimo->punto[2].y-esfera.y, minimo->punto[2].z-esfera.z};
+
+			vector aux;
+			crossproduct(&d1,&d2,&aux);
+			double area3 = sqrt(aux.x*aux.x+aux.y*aux.y+aux.z*aux.z)/2.0;
+
+			crossproduct(&d2,&d3,&aux);
+			double area1 = sqrt(aux.x*aux.x+aux.y*aux.y+aux.z*aux.z)/2.0;
+
+			crossproduct(&d3,&d1,&aux);
+			double area2 = sqrt(aux.x*aux.x+aux.y*aux.y+aux.z*aux.z)/2.0;
+
+			double sumatorio = area1+area2+area3;
+			area1=area1/sumatorio; area2=area2/sumatorio; area3=area3/sumatorio;
+
+			normal->x = minimo->normales[0].x*area1+minimo->normales[1].x*area2+minimo->normales[2].x*area3;
+			normal->y = minimo->normales[0].y*area1+minimo->normales[1].y*area2+minimo->normales[2].y*area3;
+			normal->z = minimo->normales[0].z*area1+minimo->normales[1].z*area2+minimo->normales[2].z*area3;
+
+		}
+	}
+	normalizar(normal);
+
+	int flag=0;
+
+	vector salida;
+				
+	// Se calcula la reflexion solo si es necesario
+	if(minimo->propiedades->Krfl->r!=0.0 && 
+		minimo->propiedades->Krfl->g!=0.0 && 
+		minimo->propiedades->Krfl->b!=0.0)
+	{
+			double factor = normal->x * -pixel.x + normal->y * -pixel.y + normal->z * -pixel.z;
+			salida.x = -pixel.x - 2 * (-pixel.x - factor * normal->x);
+			salida.y = -pixel.y - 2 * (-pixel.y - factor * normal->y);
+			salida.z = -pixel.z - 2 * (-pixel.z - factor * normal->z);
+			normalizar(&salida);
+			flag=1;
+	}
+
+	// Se calcula la refraccion solo si es necesario
+	if(minimo->propiedades->Krfr->r!=0.0 && 
+		minimo->propiedades->Krfr->g!=0.0 && 
+		minimo->propiedades->Krfr->b!=0.0)
+	{
+
+			double n_refraction = minimo->propiedades->indice_ref; // Aire-Cristal 1.00/1.52=0.65
+			if(dir_aux == 0) n_refraction = 1.0/n_refraction;
+			double dot = -normal->x * pixel.x + -normal->y * pixel.y + -normal->z * pixel.z;
+			double k = 1.0 - n_refraction * n_refraction * (1.0 - dot * dot);
+			
+			salida.x = n_refraction * pixel.x + (n_refraction * dot - sqrt(k)) * normal->x;
+			salida.y = n_refraction * pixel.y + (n_refraction * dot - sqrt(k)) * normal->y;
+			salida.z = n_refraction * pixel.z + (n_refraction * dot - sqrt(k)) * normal->z;
+			normalizar(&salida);
+			flag=1;
+	}
+
+	if(flag==0)
+	{
+		if(primera_vez==0){
+			photon * photon = calloc(1, sizeof(vector));
+			photon->color = calloc(1,sizeof(color));
+			photon->direccion = calloc(1, sizeof(vector));
+
+			photon->color->r=potencia.r; photon->color->g=potencia.g; photon->color->b=potencia.b;
+			photon->direccion->x=-pixel.x; photon->direccion->y=-pixel.y; photon->direccion->z=-pixel.z;
+
+			double pos[3]={esfera.x,esfera.y,esfera.z};
+
+			if(kd_insert(mapaFotones, pos, (void *) photon)==-1) printf("Error al añadir\n");;
+			total_insertado++;
+		}
+		srand48(clock());
+		double aleatorio=0.0;
+		aleatorio = drand48();
+		double probdifusa = (minimo->propiedades->color->r+minimo->propiedades->color->g+minimo->propiedades->color->b)/3;
+
+		if(aleatorio<=probdifusa){
+			obtener_rayo(*normal, &salida);
+			brdf(salida, inter, *normal, minimo, &potencia);
+			enviar_photon(salida, esfera, potencia, 0);
+		} else if(aleatorio<=probdifusa+minimo->propiedades->ks){
+			double factor = normal->x * -pixel.x + normal->y * -pixel.y + normal->z * -pixel.z;
+			salida.x = -pixel.x - 2 * (-pixel.x - factor * normal->x);
+			salida.y = -pixel.y - 2 * (-pixel.y - factor * normal->y);
+			salida.z = -pixel.z - 2 * (-pixel.z - factor * normal->z);
+			normalizar(&salida);
+			brdf(salida, inter, *normal, minimo, &potencia);
+			enviar_photon(salida, esfera, potencia, 0);
+		}
+		free(normal);
+		return 1;
+	}
+
+	enviar_photon(salida, esfera, potencia, 0);
+
+	free(normal);
+	return 1;
+}
+
+
+int mapa_fotones()
+{
+	mapaFotones = kd_create(3);
+	luces * aux = lights;
+
+	while(1){
+
+		printf("%g %g %g\n",aux->punto->x,aux->punto->y,aux->punto->z);
+
+		int i;
+		double aleatorio1, aleatorio2, aleatorio3;
+
+		color potencia;
+		potencia.r=aux->color->r / NUM_RAYOS;
+		potencia.g=aux->color->g / NUM_RAYOS;
+		potencia.b=aux->color->b / NUM_RAYOS;
+		for (i = 0; i < NUM_RAYOS; i++){
+			//se eligen la inclinación y el acimut por montecarlo
+			srand(clock());
+			do{
+				aleatorio1 = (double) ((rand()%201)-100) / 100.0;
+				aleatorio2 = (double) ((rand()%201)-100) / 100.0;
+				aleatorio3 = (double) ((rand()%201)-100) / 100.0;
+			} while(aleatorio1*aleatorio1+aleatorio2*aleatorio2+aleatorio3*aleatorio3 > 1);
+
+			vector photon = {aleatorio1, aleatorio2, aleatorio3};
+			normalizar(&photon);
+
+			punto point;
+			point.x=aux->punto->x;point.y=aux->punto->y;point.z=aux->punto->z;
+
+			//enviar_photon(photon, point, *aux->color, 1);
+			enviar_photon(photon, point, potencia, 1);
+		}
+		printf("%d\n", i);
+		if(aux->l==NULL) break;
+		aux = aux->l;
+	}
+
+	printf("Insertados: %d\n", total_insertado);
+	return 1;
 }
 
 int saturacion_color(color * col)
@@ -827,6 +1137,10 @@ int main(int argc, char ** argv)
 
 	img_buff=malloc(ancho*alto*sizeof(char)*3);
 	incrementador = alto/100;
+
+	printf("LLenando mapa de fotones\n");
+	mapa_fotones();
+	printf("Mapa llenado\n");
 
 	#ifdef OPENGL
 	glutInit( &argc, argv );
