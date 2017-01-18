@@ -31,6 +31,7 @@ int total_insertado=0;
 // Nombres por defecto de los ficheros
 char * img={"imagen.ppm"};
 char * scn={"escenas/imagen.scn"};
+char * scnOBJ={""};
 
 // Punteros a las listas donde se almacenan las esferas y los focos
 lista * l = NULL;
@@ -126,6 +127,7 @@ int main(int argc, char ** argv)
 {
 	int opt;
 	int obj=0;
+	int scnFile=0;
 	// Con este bucle obtenemos los parametros dados
 	while ((opt = getopt (argc, argv, "o:i:j:h")) != -1){
 		switch(opt)
@@ -135,34 +137,45 @@ int main(int argc, char ** argv)
 					break;
 				case 'i':
 					scn = optarg;
+					scnFile=1;
 					break;
 				case 'j':
 					obj=1;
-					scn = optarg;
+					scnOBJ = optarg;
 					break;
 				case 'h':
 					printf("Use -o para nombre de imagen, -i para nombre de escena y -j para objs\n");
 					return 0;
 			}
 	}
-	FILE * escena;
+	FILE * escenaSCN;
+	FILE * escenaOBJ;
 
-	escena = fopen(scn, "r");
-
-	if(obj==0){
-		parser(escena);
-	}else{
-		parserOBJ(escena);
-		luces * a = calloc(1, sizeof(luces));
-		a->punto=calloc(1,sizeof(punto));
-		a->color=calloc(1,sizeof(color));
-
-		a->punto->x=0.5; a->punto->y=0.5; a->punto->z=0.0;
-		a->color->r=5.0; a->color->g=5.0; a->color->b=5.0;
-		
-		lights=a;
+	if(obj==0 || scnFile == 1){
+		printf("Parseando fichero escena\n");
+		escenaSCN = fopen(scn, "r");
+		parser(escenaSCN);
+		fclose(escenaSCN);
+		printf("Fichero Escena parseado\n");
 	}
-	fclose(escena);
+	if(obj==1){
+		printf("Parseando fichero OBJ\n");
+		escenaOBJ = fopen(scnOBJ, "r");
+		parserOBJ(escenaOBJ);
+		fclose(escenaOBJ);
+		printf("Fichero OBJ parseado\n");
+
+		if(scnFile==0){
+			luces * a = calloc(1, sizeof(luces));
+			a->punto=calloc(1,sizeof(punto));
+			a->color=calloc(1,sizeof(color));
+
+			a->punto->x=0.5; a->punto->y=0.5; a->punto->z=1.0;
+			a->color->r=5.0; a->color->g=5.0; a->color->b=5.0;
+			
+			lights=a;
+		}
+	}
 
 	img_buff=malloc(ancho*alto*sizeof(char)*3);
 	incrementador = alto/100;

@@ -13,12 +13,14 @@
  */
 int parserOBJ(FILE * f)
 {
-	punto vertices[50000];
-	vector normales[50000];
+	int triangulos=0;
+	punto vertices[100000];
+	vector normales[100000];
 	int i=0;
 	int d=0;
 	// Iteradores para ir guardando los datos
 	lista * aux = NULL;
+	lista * primero = NULL;
 	// variables auxiliares
 	double x,y,z;
 	int a,b,c,dummy,a2,b2,c2;
@@ -65,14 +67,15 @@ int parserOBJ(FILE * f)
 			la->normales[1].x=normales[b2].x; la->normales[1].y=normales[b2].y; la->normales[1].z=normales[b2].z;
 			la->normales[2].x=normales[c2].x; la->normales[2].y=normales[c2].y; la->normales[2].z=normales[c2].z;
 
-			la->propiedades->color->r=0.5; la->propiedades->color->g=0.5; la->propiedades->color->b=0.5;
+			la->propiedades->color->r=1.0; la->propiedades->color->g=1.0; la->propiedades->color->b=1.0;
 			la->propiedades->Krfl->r=0.0; la->propiedades->Krfl->g=0.0; la->propiedades->Krfl->b=0.0;
 			la->propiedades->Krfr->r=0.0; la->propiedades->Krfr->g=0.0; la->propiedades->Krfr->b=0.0;
 			la->propiedades->indice_ref=0.0;
-			la->propiedades->ks=0.5;
+			la->propiedades->ks=0.2;
 			la->propiedades->alpha=1;
-			if(l==NULL){
-				l=la;
+			triangulos++;
+			if(primero==NULL){
+				primero=la;
 			} else{
 				aux->l=la;
 			}
@@ -80,6 +83,17 @@ int parserOBJ(FILE * f)
 		} else{
 			fgets(buffdummy,99,f);
 		}
+	}
+	printf("triangulos cargados %d\n", triangulos);
+	if(l!=NULL){
+		aux=l;
+		while(1){
+			if(aux->l==NULL) break;
+			aux=aux->l;
+		}
+		aux->l=primero;
+	} else {
+		l=primero;
 	}
 	return 0;
 }

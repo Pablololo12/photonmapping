@@ -61,7 +61,8 @@ typedef struct photon{
 
 //Variables globales
 #define NUM_RAYOS 1000.0
-#define POT_INDIRECTA 10.0
+#define NUM_BUSCAR 500
+#define POT_INDIRECTA 20.0
 #define RECURSIONES 5
 #define NUM_THREADS 1
 #define EPSILON 0.000001
@@ -82,6 +83,7 @@ extern int total_insertado;
 // Nombres por defecto de los ficheros
 extern char * img;
 extern char * scn;
+extern char * scnOBJ;
 
 // Punteros a las listas donde se almacenan las esferas y los focos
 extern lista * l;

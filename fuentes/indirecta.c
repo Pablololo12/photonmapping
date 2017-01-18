@@ -36,11 +36,12 @@ color luz_indirecta(vector pixel, punto lugar, vector normal, lista * objeto)
 	color acumulador={0.0,0.0,0.0};
 	double max_dist=0.0;
 
-	while(kd_res_size(busqueda)<100)
+	while(kd_res_size(busqueda)<NUM_BUSCAR)
 	{
 		i+=0.05;
 		kd_res_free(busqueda);
 		busqueda=kd_nearest_range(mapaFotones, pos, i);
+		if(i>1.0) return acumulador;
 	}
 
 	//int num=kd_res_size(busqueda);

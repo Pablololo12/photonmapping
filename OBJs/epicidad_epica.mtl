@@ -1,0 +1,141 @@
+# Blender MTL File: 'imagen_ganadora.blend'
+# Material Count: 13
+
+newmtl InterceptorBody.001
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl InterceptorChassis.001
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl InterceptorEngine.001
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl InterceptorInterior.001
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl InterceptorWheel.001
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl MillenniumFalconBottom
+Ns 94.117647
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/Millennium_Falcon 2/Millennium_Falcon_Bottom_D.tga
+map_Bump /Users/pablo/Downloads/Millennium_Falcon 2/Millennium_Falcon_Bottom_N.tga
+
+newmtl MillenniumFalconTop
+Ns 94.117647
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/Millennium_Falcon 2/Millennium_Falcon_Top_D.tga
+map_Bump /Users/pablo/Downloads/Millennium_Falcon 2/Millennium_Falcon_Top_N.tga
+
+newmtl Object
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl Stormtrooper.002
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl glass
+Ns 7.843137
+Ka 0.117647 0.117647 0.117647
+Kd 1.000000 1.000000 1.000000
+Ks 0.752941 0.752941 0.752941
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/FA-18E_SuperHornet/Glass_Cockpit.png
+
+newmtl pilot
+Ns 7.843137
+Ka 0.117647 0.117647 0.117647
+Kd 1.000000 1.000000 1.000000
+Ks 0.752941 0.752941 0.752941
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/FA-18E_SuperHornet/Pilot_usa.png
+
+newmtl plane
+Ns 7.843137
+Ka 0.117647 0.117647 0.117647
+Kd 1.000000 1.000000 1.000000
+Ks 0.752941 0.752941 0.752941
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/FA-18E_SuperHornet/FA-18E_SuperHornet_P01.png
+map_Bump /Users/pablo/Downloads/FA-18E_SuperHornet/FA-18E_SuperHornet_N.png
+
+newmtl seat
+Ns 7.843137
+Ka 0.117647 0.117647 0.117647
+Kd 1.000000 1.000000 1.000000
+Ks 0.752941 0.752941 0.752941
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd /Users/pablo/Downloads/FA-18E_SuperHornet/Eject_Seat.png

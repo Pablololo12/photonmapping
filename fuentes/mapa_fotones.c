@@ -181,6 +181,11 @@ int enviar_photon(vector pixel, punto cam, color potencia, int primera_vez)
 			double dot = -normal->x * pixel.x + -normal->y * pixel.y + -normal->z * pixel.z;
 			double k = 1.0 - n_refraction * n_refraction * (1.0 - dot * dot);
 			
+			srand48(clock());
+			double aleatorio=0.0;
+			aleatorio = drand48();
+			if(aleatorio>minimo->propiedades->Krfr->r) return 0;
+			
 			salida.x = n_refraction * pixel.x + (n_refraction * dot - sqrt(k)) * normal->x;
 			salida.y = n_refraction * pixel.y + (n_refraction * dot - sqrt(k)) * normal->y;
 			salida.z = n_refraction * pixel.z + (n_refraction * dot - sqrt(k)) * normal->z;
